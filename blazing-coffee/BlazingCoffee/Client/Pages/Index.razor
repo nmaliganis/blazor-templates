@@ -1,0 +1,156 @@
+﻿@page "/"
+@inherits CoffeeComponentBase
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+@inject HttpClient Http
+@using Telerik.Blazor.Services
+@using Telerik.SvgIcons;
+
+<CardContainer>
+    <CardHeader>
+        <div class="card-header-wrapper">
+            <h3 class="card-title">@Localizer["Employees"]</h3>
+                <TelerikButtonGroup>
+                    <ButtonGroupToggleButton @bind-Selected="@SingleTeamSelected" OnClick="OnButtonGroupClick">@Localizer["ButtonGroup_MyTeam"]</ButtonGroupToggleButton>
+                    <ButtonGroupToggleButton @bind-Selected="@AllTeamsSelected" OnClick="OnButtonGroupClick">@Localizer["ButtonGroup_AllTeams"]</ButtonGroupToggleButton>
+                </TelerikButtonGroup>
+        </div>
+    </CardHeader>
+    @if (employees != null)
+    {
+        <TelerikGrid Data="employees"
+                 SelectionMode="GridSelectionMode.Multiple"
+                 @ref="@Grid"
+                 Height="480px"
+                 Pageable="true"
+                 Sortable="true"
+                 FilterMode="GridFilterMode.FilterMenu"
+                 Resizable="true"
+                 Page="@Page"
+                 Groupable="true"
+                 ShowColumnMenu="true">
+            <GridToolBarTemplate>
+                <GridSearchBox Width="150px"></GridSearchBox>
+                <span class="k-toolbar-spacer"></span>
+                <GridCommandButton Command="ExcelExport" Icon="@SvgIcon.FileExcel">@Localizer["Grid_ExcelExport"]</GridCommandButton>
+                <GridCommandButton Command="CsvExport" Icon="@SvgIcon.FileCsv">@Localizer["Grid_CsvExport"]</GridCommandButton>
+            </GridToolBarTemplate>
+            <GridColumns>
+                <GridCheckboxColumn Width="45px"
+                    OnCellRender="@((GridCellRenderEventArgs args) => args.Class = "chkb-centered" )"
+                    HeaderClass="chkb-centered"
+                    Resizable="false" 
+                    ShowColumnMenu="false">
+                </GridCheckboxColumn>
+                <GridColumn Title="@Localizer["Employee_Grid_Title_Personal_Information"]">
+                    <Columns>
+                        <GridColumn Field="@nameof(Employee.FullName)" Title="@Localizer["Employee_Grid_Title_FullName"]" Sortable="false" Width="220px" Filterable="false">
+                            <Template>
+                                @{
+                                    var employee = context as Employee;
+
+                                    <div class="employee-photo" style="border: 2px solid @employee.Team.TeamColor; background-image: url('./img/employees/@(employee.Id).jpg')"></div>
+                                    <div class="employee-name">@employee.FullName</div>
+                                }
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Field="@nameof(Employee.JobTitle)" Width="220px" Title="@Localizer["Employee_Grid_Title_JobTitle"]"></GridColumn>
+                    <GridColumn Field="@nameof(Employee.Country)" Width="100px" Title="@Localizer["Employee_Grid_Title_Country"]">
+                        <Template>
+                            @{
+                                 var employee = context as Employee;
+
+                                <img style="width: 30px;" src="./img/country-flags/@(employee.Country.ToLower()).png" />
+                            }
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Field="@nameof(Employee.IsOnline)" Width="100px" Title="@Localizer["Employee_Grid_Title_Status"]">
+                        <Template>
+                            @{
+                                var employee = context as Employee;
+                                var employeeIsOnline = employee != null && employee.IsOnline;
+
+                                <span class="k-badge k-badge-md k-badge-solid k-rounded-md k-badge-solid-success">@(employee != null && employee.IsOnline ? "Online" : "Offline")</span>
+                            }
+                        </Template>
+                    </GridColumn>
+                </Columns>
+            </GridColumn>
+            <GridColumn Title="@Localizer["Employee_Grid_Title_Performance"]">
+                <Columns>
+                    <GridColumn Field="@nameof(Employee.Rating)" Width="185px" Title="@Localizer["Employee_Grid_Title_Rating"]">
+                        <Template>
+                                <TelerikRating Value="((Employee)context).Rating" />
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Field="@nameof(Employee.Target)" Width="230px" Title="@Localizer["Employee_Grid_Title_Engagement"]">
+                        <Template>
+                            @{
+                                var employee = context as Employee;
+
+                                if (employee != null)
+                                {
+                                    <TelerikProgressBar Max="100" Value="employee.Target" />
+                                }
+                            }
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Field="@nameof(Employee.Budget)" DisplayFormat="{0:C}" Width="100px" Title="@Localizer["Employee_Grid_Title_Budget"]"></GridColumn>
+                </Columns>
+            </GridColumn>
+            <GridColumn Title="@Localizer["Employee_Grid_Title_Contacts"]">
+                <Columns>
+                    <GridColumn Field="@nameof(Employee.Phone)" Width="130px" Title="@Localizer["Employee_Grid_Title_Phone"]"></GridColumn>
+                    <GridColumn Field="@nameof(Employee.Address)" DisplayFormat="{0:C}" Width="200px" Title="@Localizer["Employee_Grid_Title_Address"]"></GridColumn>
+                </Columns>
+            </GridColumn>
+        </GridColumns>
+    </TelerikGrid>
+    }
+    </CardContainer>
+
+@code {
+    private List<Employee> employees { get; set; } = new List<Employee>();
+    TelerikGrid<Employee> Grid { get; set; }
+
+    public int Page { get; set; } = 1;
+    public bool SingleTeamSelected { get; set; }
+    public bool AllTeamsSelected { get; set; } = true;
+
+    protected override void OnInitialized()
+    {
+        Layout.DocsTitle = Localizer["HumanCapital"];
+
+        base.OnInitialized();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        employees = (await Http.GetFromJsonAsync<Employee[]>("api/employees")).ToList();
+    }
+
+    private void OnCellRender(GridCellRenderEventArgs args)
+    {
+        args.Class = "center-cell";
+    }
+
+    public async Task OnButtonGroupClick()
+    {
+        var state = Grid.GetState();
+
+        if (AllTeamsSelected)
+        {
+            state.FilterDescriptors.Add(SingleTeamDescriptor());
+        }
+        else
+        {
+            Grid.StateContainer.RemoveFilter("TeamId");
+            state = Grid.GetState();
+        }
+
+        Page = 1;
+
+        await Grid.SetStateAsync(state);
+    }
+
+    FilterDescriptor SingleTeamDescriptor() => new FilterDescriptor("TeamId", FilterOperator.IsEqualTo, 3);
+}

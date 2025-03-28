@@ -1,0 +1,104 @@
+﻿@namespace BlazingCoffee.Client.Shared
+@using BlazingCoffee.Client.Shared.NavMenu
+@using Telerik.SvgIcons;
+
+@inherits LayoutComponentBase
+@inject ITelerikStringLocalizer Localizer
+@inject ILocalStorageService LocalStorage
+@inject Services.PublicHttp Http
+@inject MainLayoutState Layout
+
+<TelerikRootComponent>
+    <div class="header">
+        <div class="nav-container">
+            <div class="menu-button">
+                <TelerikButton Icon="@SvgIcon.Menu" OnClick="ToggleMenuDrawer" />
+            </div>
+            <div class="title">
+                <h1>@Localizer["Blazing_Coffee_Title"]</h1>
+            </div>
+            @{
+                if (!WindowWidthSmall)
+                {
+                    <SettingsChooser></SettingsChooser>
+                }
+            }
+        </div>
+    </div>
+    <TelerikDrawer @ref="MenuDrawer"
+                   Expanded="@Expanded"
+                   ExpandedChanged="((bool newValue) => ExpandedChangedHandler(newValue))"
+                   Width="190px" Data="Data" Mode="DrawerMode.Push" Position="DrawerPosition.Start" MiniMode="true">
+        <Template>
+            <DrawTemplate Data="context"></DrawTemplate>
+        </Template>
+        <DrawerContent>
+            @Body
+        </DrawerContent>
+    </TelerikDrawer>
+</TelerikRootComponent>
+
+<TelerikMediaQuery Media="(max-width: 768px)" OnChange="((changed) => WindowWidthSmall = changed)"></TelerikMediaQuery>
+@code {
+    TelerikDrawer<DrawerItem> MenuDrawer { get; set; }
+
+    bool Expanded { get; set; }
+    bool SettingsExpanded { get; set; }
+    bool DocsExpanded { get; set; }
+    bool WindowWidthSmall {get; set; }
+    string Docs { get; set; }
+
+    [CascadingParameter] public CoffeeComponentBase DocumentedComponent { get; set; }
+
+    IEnumerable<DrawerItem> Data =>
+    new List<DrawerItem>
+    {
+            new DrawerItem{ Text = Localizer["Drawer_Team"], Icon = SvgIcon.Grid, Url="/blazor-coffee/", Group = "home"},
+            new DrawerItem{ Text = Localizer["Drawer_Dashboard"], Icon = SvgIcon.ChartLineMarkers, Url="/blazor-coffee/sales", Group = "app"},
+            new DrawerItem{ Text = Localizer["Drawer_Profile"], Icon = SvgIcon.User, Url="/blazor-coffee/profile", Group = "app"},
+            new DrawerItem{ Text = Localizer["Drawer_Info"], Icon = SvgIcon.InfoCircle, Url="/blazor-coffee/information", Group = "ext"}
+    };
+      
+    async Task ToggleMenuDrawer()
+    {
+        if (Expanded)
+        {
+            await MenuDrawer.CollapseAsync();
+        }
+        else
+        {
+            await MenuDrawer.ExpandAsync();
+        }
+    }
+
+    async Task ExpandedChangedHandler(bool value)
+    {
+        Expanded = value;
+
+        await LocalStorage.SetItemAsync("drawerState", value);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var hasKey = await LocalStorage.ContainKeyAsync("drawerState");
+        if (hasKey)
+        {
+            Expanded = await LocalStorage.GetItemAsync<bool>("drawerState");
+        }
+        else
+        {
+            Expanded = false;
+        }
+
+        Layout.LayoutStateChange = async () =>
+        {
+            if (Layout.HasDocs)
+            {
+                var result = await Http.Client.GetStringAsync($"/blazor-coffee/docs/{Layout.DocsPath}.razor.md");
+                Docs = Markdig.Markdown.ToHtml(result);
+            }
+        };
+
+        await InvokeAsync(Layout.LayoutStateChange);
+    }
+}
