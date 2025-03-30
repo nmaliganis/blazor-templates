@@ -8,53 +8,79 @@ namespace BlazorDashboard.DataRetrieval
 {
 	public class IssuesGenerator
 	{
-		public async Task<IEnumerable<Issue>> GetIssues(DateTime timeRange)
+		public async Task<IEnumerable<Issue>> GetIssues(DateTime sprintStartDate)
 		{
-			//in a real case this can be asynchronous and would be calling an actual data endpoint. Here, we generate data "randomly"
+			int sprintLengthDays = 14;
+			int totalIssues = rand.Next(40, 51); // 40–50 issues
 
-			DateTime currTime = DateTime.Now;
-			int daysToGenerateIssueFor = ((TimeSpan)(currTime - timeRange)).Days;
 			List<Issue> issueList = new List<Issue>();
-            int issueId = 0;
+			int issueId = 0;
 
-            for (int i = daysToGenerateIssueFor; i >= 0; i--)
+			int closeByDay7 = (int)(totalIssues * 0.45);
+			int closeByDay14 = (int)(totalIssues * rand.Next(80, 91) / 100.0);
+			int closeBetween8And14 = closeByDay14 - closeByDay7;
+
+			// Create indices to enforce close schedule
+			var allIndices = Enumerable.Range(0, totalIssues).ToList();
+			var shuffled = allIndices.OrderBy(_ => rand.Next()).ToList();
+
+			var toCloseByDay7 = new HashSet<int>(shuffled.Take(closeByDay7));
+			var toCloseByDay14 = new HashSet<int>(shuffled.Skip(closeByDay7).Take(closeBetween8And14));
+
+			for (int i = 0; i < totalIssues; i++)
 			{
-				for (int j = 0; j < rand.Next(1, 4); j++)
+				Issue issue = new Issue();
+				issue.Id = ++issueId;
+				issue.Title = _dummyTitle.Substring(rand.Next(5, _dummyTitle.Length)) + issue.Id;
+
+				// Create between day 0–4
+				issue.CreatedOn = sprintStartDate.AddDays(rand.Next(0, 5));
+
+				if (toCloseByDay7.Contains(i))
 				{
-					Issue currIssue = new Issue();
-
-                    currIssue.Id = ++issueId;
-                    currIssue.Title = _dummyTitle.Substring(rand.Next(5, _dummyTitle.Length)) + currIssue.Id;
-					currIssue.CreatedOn = currTime.AddDays(-i);
-					if (rand.Next(0, 10) % rand.Next(1, 4) == 0)
-					{
-						currIssue.ClosedOn = currTime.AddDays(-rand.Next(0, rand.Next(0, i)));
-					}
-
-					int type = rand.Next(0, 3);
-					currIssue.Type = (IssueType)type;
-					currIssue.Labels = new List<string>();
-					currIssue.Labels.Add(_issueTypes[type]);
-					if (currIssue.Type == IssueType.Bug)
-					{
-						int sev = rand.Next(0, 3);
-						currIssue.Severity = (IssueSeverity)sev;
-						currIssue.Labels.Add(_severities[sev]);
-					}
-					currIssue.Labels.Add("team " + rand.Next(1, 3));
-					currIssue.Labels.Add("priority " + rand.Next(1, 7));
-					currIssue.Labels.Add(_componentList[rand.Next(0, _componentList.Length - 1)]);
-					currIssue.Labels.Add(rand.Next(0, 20) % 6 == 0 ? "appearance" : "functionality");
-					currIssue.Labels.Add(currIssue.IsOpen ? "open" : "closed");
-
-					currIssue.Description = "<p style=\"margin: 0px 0px 15px; padding: 0px; text-align: justify; font-family: 'Open Sans', Arial, sans-serif;\"><strong>Lorem ipsum </strong>dolor sit amet, consectetur adipiscing elit. Nam eget diam et ipsum vulputate porta. Duis non venenatis odio, ut sagittis mi. Nam et pellentesque dolor. Pellentesque ornare neque ac feugiat convallis:</p><ul>	<li style =\"margin: 0px 0px 15px; padding: 0px; text-align: justify; font-family: 'Open Sans', Arial, sans-serif;\"> Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. </li><li style =\"margin: 0px 0px 15px; padding: 0px; text-align: justify; font-family: 'Open Sans', Arial, sans-serif; \">In ac eros eget elit laoreet congue vitae vel quam. </li><li style =\"margin: 0px 0px 15px; padding: 0px; text-align: justify; font-family: 'Open Sans', Arial, sans-serif; \">Suspendisse potenti. </li><li style =\"margin: 0px 0px 15px; padding: 0px; text-align: justify; font-family: 'Open Sans', Arial, sans-serif; \">Fusce vitae magna maximus, ornare turpis quis, porttitor velit. Nam ac condimentum massa, vitae tristique nulla.</li></ul><h5 style =\"margin: 0px 0px 15px; padding: 0px; text-align: justify; font-family: 'Open Sans', Arial, sans-serif; \">Vestibulum vitae ante egestas, sollicitudin justo a, pulvinar turpis.</h5><p style =\"margin: 0px 0px 15px; padding: 0px; text-align: justify; font-family: 'Open Sans', Arial, sans-serif; \"> Sed at condimentum turpis. Mauris fermentum, felis non euismod sagittis, nisl dui bibendum urna, vel iaculis mi nunc dictum turpis. In sodales at sapien eget pellentesque.</p>";
-
-					issueList.Add(currIssue);
+					// Close between creation date and day 7
+					int min = (issue.CreatedOn - sprintStartDate).Days;
+					int closeDay = rand.Next(min, Math.Min(7, sprintLengthDays) + 1);
+					issue.ClosedOn = sprintStartDate.AddDays(closeDay);
 				}
+				else if (toCloseByDay14.Contains(i))
+				{
+					// Close between day 8–14
+					int min = Math.Max(8, (issue.CreatedOn - sprintStartDate).Days + 1);
+					int closeDay = rand.Next(min, sprintLengthDays + 1);
+					issue.ClosedOn = sprintStartDate.AddDays(closeDay);
+				}
+				// Else leave issue open
+
+				int type = rand.Next(0, 3);
+				issue.Type = (IssueType)type;
+				issue.Labels = new List<string>
+		{
+			_issueTypes[type],
+			"team " + rand.Next(1, 3),
+			"priority " + rand.Next(1, 7),
+			_componentList[rand.Next(0, _componentList.Length)],
+			rand.Next(0, 6) == 0 ? "appearance" : "functionality",
+			issue.IsOpen ? "open" : "closed"
+		};
+
+				if (issue.Type == IssueType.Bug)
+				{
+					int sev = rand.Next(0, 3);
+					issue.Severity = (IssueSeverity)sev;
+					issue.Labels.Add(_severities[sev]);
+				}
+
+				issue.Description = "<p><strong>Lorem ipsum</strong>... description omitted.</p>";
+
+				issueList.Add(issue);
 			}
 
 			return issueList;
 		}
+
+
+
 
 		private static Random rand = new Random();
 		private static string _dummyTitle = "Issue lorem ipsum dolor sit amet, consectetur adipiscing elit.";

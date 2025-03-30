@@ -14,8 +14,8 @@
 		<div>
 			<h2>
 				<span class="small text-uppercase text-muted d-block">Statistics</span>
-				@IssuesFilter.GetRangeFromNumber(timeRange).ToString("ddd, dd MMM yyyy")
-				- @DateTime.Now.ToString("ddd, dd MMM yyyy")
+                @IssuesFilter.GetRangeFromNumber(timeRange).ToString("ddd, dd MMM yyyy", new System.Globalization.CultureInfo("en-US"))
+                - @DateTime.Now.ToString("ddd, dd MMM yyyy", new System.Globalization.CultureInfo("en-US"))
 			</h2>
 		</div>
 		<div class="k-spacer"></div>
@@ -31,7 +31,7 @@
 	<div class="row">
 		<div class="col-md-12">
 			<div class="card">
-				<h3 class="card-header">Active Issues</h3>
+				<h3 class="card-header">In Progress Tasks</h3>
 				<div class="card-body">
 
 					<div class="row">
@@ -39,7 +39,7 @@
 						<div class="col-sm-12 col-md-6 col-lg active-issues">
 							<span class="comp-label">
 								<strong>@IssuesList.Count()</strong>
-								<small>Active issues</small>
+								<small>To Do Tasks</small>
 							</span>
 							<IssuesBreakDownCharts ChartData="@IssuesList" SeriesColor="#888"></IssuesBreakDownCharts>
 						</div>
@@ -47,7 +47,7 @@
 						<div class="col-sm-12 col-md-6 col-lg text-success closed-issues">
 							<span class="comp-label">
 								<strong>@ClosedIssues.Count()</strong>
-								<small>Closed issues</small>
+								<small>Done Tasks</small>
 							</span>
 							<IssuesBreakDownCharts ChartData="@ClosedIssues" SeriesColor="#27c46d"></IssuesBreakDownCharts>
 						</div>
@@ -55,7 +55,7 @@
 						<div class="col-sm-12 col-md-6 col-lg text-danger open-issues">
 							<span class="comp-label">
 								<strong>@OpenIssues.Count()</strong>
-								<small>Open issues</small>
+								<small>In Progress Tasks</small>
 							</span>
 							<IssuesBreakDownCharts ChartData="@OpenIssues" SeriesColor="#CF3268"></IssuesBreakDownCharts>
 						</div>
